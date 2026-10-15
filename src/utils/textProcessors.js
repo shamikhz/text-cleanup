@@ -118,35 +118,34 @@ export function normalizeParagraphBreaks(text) {
 export function removeDuplicateLines(text, options = {}) {
   if (!text) return '';
   const {
-    caseSensitive = true,
+    caseSensitive = false,
     ignoreWhitespace = true,
     preserveFirst = true,
     blankLinesMode = 'dedupe'
   } = options;
 
-  const lines = text.split('\n');
+  // Always normalize line endings first so CRLF differences don't break line matching
+  const normalized = normalizeLineEndings(text);
+  const lines = normalized.split('\n');
   const seen = new Set();
   let hasBlankLine = false;
 
-  const filtered = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i];
+  const processLine = (rawLine) => {
     const isBlank = rawLine.trim().length === 0;
 
     if (isBlank) {
       if (blankLinesMode === 'removeAll') {
-        continue;
+        return null;
       } else if (blankLinesMode === 'dedupe') {
         if (!hasBlankLine) {
-          filtered.push('');
           hasBlankLine = true;
+          return '';
         }
+        return null;
       } else {
         // 'keepAll'
-        filtered.push(rawLine);
+        return rawLine;
       }
-      continue;
     }
 
     let key = ignoreWhitespace ? rawLine.trim() : rawLine;
@@ -156,11 +155,137 @@ export function removeDuplicateLines(text, options = {}) {
 
     if (!seen.has(key)) {
       seen.add(key);
-      filtered.push(rawLine);
+      return rawLine;
+    }
+    return null;
+  };
+
+  const filtered = [];
+  if (preserveFirst) {
+    for (let i = 0; i < lines.length; i++) {
+      const res = processLine(lines[i]);
+      if (res !== null) filtered.push(res);
+    }
+  } else {
+    // Preserve last occurrence
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const res = processLine(lines[i]);
+      if (res !== null) filtered.unshift(res);
     }
   }
 
   return filtered.join('\n');
+}
+
+/**
+ * Calculates the number of duplicate lines that would be removed.
+ * @param {string} text 
+ * @param {Object} [options]
+ * @returns {number}
+ */
+export function countDuplicateLines(text, options = {}) {
+  if (!text) return 0;
+  const normalized = normalizeLineEndings(text);
+  const beforeCount = normalized.split('\n').length;
+  const after = removeDuplicateLines(normalized, options);
+  const afterCount = after.split('\n').length;
+  return Math.max(0, beforeCount - afterCount);
+}
+
+/**
+ * Removes duplicate words from text.
+ * Can remove consecutive repeated words (e.g., "the the" -> "the")
+ * or all duplicate words per line.
+ * 
+ * @param {string} text 
+ * @param {Object} [options]
+ * @param {boolean} [options.caseSensitive=false]
+ * @param {'consecutive'|'allInLine'} [options.mode='consecutive']
+ * @returns {string}
+ */
+export function removeDuplicateWords(text, options = {}) {
+  if (!text) return '';
+  const { caseSensitive = false, mode = 'consecutive' } = options;
+
+  if (mode === 'consecutive') {
+    const lines = text.split('\n');
+    const processedLines = lines.map(line => {
+      const pattern = caseSensitive
+        ? /\b([\p{L}\p{N}]+)(?:\s+\1\b)+/gu
+        : /\b([\p{L}\p{N}]+)(?:\s+\1\b)+/giu;
+      return line.replace(pattern, (match, word) => word);
+    });
+    return processedLines.join('\n');
+  } else {
+    const lines = text.split('\n');
+    const processedLines = lines.map(line => {
+      const tokens = line.split(/([\p{L}\p{N}]+)/u);
+      const seen = new Set();
+      const output = [];
+
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        if (i % 2 === 1) {
+          // Word token
+          const key = caseSensitive ? token : token.toLocaleLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            output.push(token);
+          } else {
+            // Duplicate word - omit token and trim preceding space token if present
+            if (output.length > 0 && /^[^\S\r\n]+$/.test(output[output.length - 1])) {
+              output.pop();
+            }
+          }
+        } else {
+          output.push(token);
+        }
+      }
+      return output.join('').replace(/[^\S\r\n]{2,}/g, ' ');
+    });
+    return processedLines.join('\n');
+  }
+}
+
+/**
+ * Calculates the number of duplicate words that would be removed.
+ * @param {string} text 
+ * @param {Object} [options]
+ * @returns {number}
+ */
+export function countDuplicateWords(text, options = {}) {
+  if (!text) return 0;
+  const { caseSensitive = false, mode = 'consecutive' } = options;
+  let count = 0;
+
+  if (mode === 'consecutive') {
+    const lines = text.split('\n');
+    for (const line of lines) {
+      const pattern = caseSensitive
+        ? /\b([\p{L}\p{N}]+)(?:\s+\1\b)+/gu
+        : /\b([\p{L}\p{N}]+)(?:\s+\1\b)+/giu;
+      const matches = line.matchAll(pattern);
+      for (const match of matches) {
+        const words = match[0].trim().split(/\s+/);
+        count += Math.max(0, words.length - 1);
+      }
+    }
+  } else {
+    const lines = text.split('\n');
+    for (const line of lines) {
+      const words = line.match(/[\p{L}\p{N}]+/gu) || [];
+      const seen = new Set();
+      for (const w of words) {
+        const key = caseSensitive ? w : w.toLocaleLowerCase();
+        if (seen.has(key)) {
+          count++;
+        } else {
+          seen.add(key);
+        }
+      }
+    }
+  }
+  return count;
 }
 
 /**
@@ -284,7 +409,7 @@ export function findAndReplace(text, options = {}) {
   } = options;
 
   if (!text || search === '') {
-    return { result: text || '', matchCount: 0 };
+    return { result: text || '', matchCount: 0, totalMatches: 0 };
   }
 
   try {
@@ -298,13 +423,15 @@ export function findAndReplace(text, options = {}) {
       pattern = new RegExp(escapeRegex(search), flags);
     }
 
-    const matches = text.match(new RegExp(pattern.source, flags.includes('g') ? flags : flags + 'g'));
+    const countFlags = pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g';
+    const matches = text.match(new RegExp(pattern.source, countFlags));
     const matchCount = matches ? matches.length : 0;
+    const replacedCount = matchAll ? matchCount : (matchCount > 0 ? 1 : 0);
 
     const result = isRegex ? text.replace(pattern, replace) : text.replace(pattern, () => replace);
-    return { result, matchCount };
+    return { result, matchCount, replacedCount, totalMatches: matchCount };
   } catch (err) {
-    return { result: text, matchCount: 0, error: err.message };
+    return { result: text, matchCount: 0, replacedCount: 0, totalMatches: 0, error: err.message };
   }
 }
 
@@ -435,13 +562,15 @@ export const DEFAULT_CONFIG = {
   removeEmptyLines: false,
   normalizeParagraphBreaks: false,
 
-  // Duplicate lines
+  // Duplicate lines and words
   removeDuplicateLines: false,
+  removeDuplicateWords: false,
   duplicateOptions: {
-    caseSensitive: true,
+    caseSensitive: false,
     ignoreWhitespace: true,
     preserveFirst: true,
     blankLinesMode: 'dedupe', // 'keepAll' | 'dedupe' | 'removeAll'
+    duplicateWordsMode: 'consecutive', // 'consecutive' | 'allInLine'
   },
 
   // Case conversion
@@ -519,7 +648,26 @@ export function processText(text, config = DEFAULT_CONFIG) {
   if (config.removeDuplicateLines) {
     const before = result;
     result = removeDuplicateLines(result, config.duplicateOptions || {});
-    if (before !== result) operationsApplied.push('Removed duplicate lines');
+    if (before !== result) {
+      const beforeCount = before.split('\n').length;
+      const afterCount = result.split('\n').length;
+      const removedCount = Math.max(0, beforeCount - afterCount);
+      operationsApplied.push(`Removed duplicate lines (${removedCount} line${removedCount !== 1 ? 's' : ''} removed)`);
+    }
+  }
+
+  // Step 4b: Remove Duplicate Words
+  if (config.removeDuplicateWords) {
+    const before = result;
+    const wordOptions = {
+      caseSensitive: config.duplicateOptions?.caseSensitive ?? false,
+      mode: config.duplicateOptions?.duplicateWordsMode ?? 'consecutive',
+    };
+    result = removeDuplicateWords(result, wordOptions);
+    if (before !== result) {
+      const removedWords = countDuplicateWords(before, wordOptions);
+      operationsApplied.push(`Removed duplicate words (${removedWords} word${removedWords !== 1 ? 's' : ''} removed)`);
+    }
   }
 
   // Step 5: Empty / Blank Lines
@@ -561,11 +709,19 @@ export function processText(text, config = DEFAULT_CONFIG) {
 
   // Step 9: Find and Replace
   let findReplaceMatches = 0;
-  if (config.findAndReplaceActive && config.findAndReplace && config.findAndReplace.search) {
+  let findReplaceSearched = false;
+  const shouldRunFindReplace = Boolean(
+    config.findAndReplace && 
+    config.findAndReplace.search &&
+    config.findAndReplace.search.length > 0 &&
+    (config.findAndReplaceActive || config.findAndReplace.search.trim().length > 0)
+  );
+  if (shouldRunFindReplace) {
+    findReplaceSearched = true;
     const { result: replaced, matchCount } = findAndReplace(result, config.findAndReplace);
     findReplaceMatches = matchCount;
-    if (result !== replaced) {
-      operationsApplied.push(`Replaced ${matchCount} occurrence(s)`);
+    if (matchCount > 0) {
+      operationsApplied.push(`Replaced ${matchCount} occurrence${matchCount !== 1 ? 's' : ''}`);
       result = replaced;
     }
   }
@@ -581,5 +737,6 @@ export function processText(text, config = DEFAULT_CONFIG) {
     cleanedText: result,
     operationsApplied,
     findReplaceMatches,
+    findReplaceSearched,
   };
 }

@@ -8,6 +8,8 @@ import {
   removeEmptyLines,
   normalizeParagraphBreaks,
   removeDuplicateLines,
+  removeDuplicateWords,
+  countDuplicateWords,
   convertCase,
   filterCharacters,
   findAndReplace,
@@ -78,6 +80,29 @@ describe('Duplicate Line Removal', () => {
     expect(removeDuplicateLines(input, { blankLinesMode: 'dedupe' })).toBe('A\n\nB\nC');
     expect(removeDuplicateLines(input, { blankLinesMode: 'removeAll' })).toBe('A\nB\nC');
     expect(removeDuplicateLines(input, { blankLinesMode: 'keepAll' })).toBe('A\n\n\nB\n\nC');
+  });
+});
+
+describe('Duplicate Word Removal', () => {
+  it('removes consecutive duplicate words', () => {
+    const input = 'This is is a test test of duplicate words words.';
+    expect(removeDuplicateWords(input, { mode: 'consecutive' })).toBe('This is a test of duplicate words.');
+  });
+
+  it('supports case-sensitive vs case-insensitive word deduplication', () => {
+    const input = 'The the apple Apple';
+    expect(removeDuplicateWords(input, { mode: 'consecutive', caseSensitive: false })).toBe('The apple');
+    expect(removeDuplicateWords(input, { mode: 'consecutive', caseSensitive: true })).toBe('The the apple Apple');
+  });
+
+  it('supports all duplicate words per line mode', () => {
+    const input = 'apple orange banana apple grape banana';
+    expect(removeDuplicateWords(input, { mode: 'allInLine', caseSensitive: false })).toBe('apple orange banana grape');
+  });
+
+  it('counts duplicate words accurately', () => {
+    const input = 'the the the cat sat sat on the the mat';
+    expect(countDuplicateWords(input, { mode: 'consecutive' })).toBe(4);
   });
 });
 

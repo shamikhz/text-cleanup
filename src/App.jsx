@@ -17,7 +17,11 @@ import Footer from './components/Footer';
 import { 
   DEFAULT_CONFIG, 
   DEFAULT_PRESETS, 
-  processText 
+  processText,
+  removeDuplicateLines,
+  removeDuplicateWords,
+  countDuplicateWords,
+  findAndReplace
 } from './utils/textProcessors';
 import { calculateTextStats } from './utils/textStats';
 import { 
@@ -127,6 +131,77 @@ export default function App() {
     notify('Undo applied', 'info');
   }, [undoHistory, notify]);
 
+  // Direct deduplicate lines action
+  const handleDirectDeduplicate = useCallback(() => {
+    if (!originalText) {
+      notify('Please enter or paste text first', 'info');
+      return;
+    }
+    const beforeLines = originalText.split('\n').length;
+    const deduplicated = removeDuplicateLines(originalText, config.duplicateOptions);
+    const afterLines = deduplicated.split('\n').length;
+    const removed = Math.max(0, beforeLines - afterLines);
+
+    if (removed > 0) {
+      setUndoHistory(prev => [...prev.slice(-20), originalText]);
+      setOriginalText(deduplicated);
+      notify(`Removed ${removed} duplicate line${removed !== 1 ? 's' : ''}`, 'success');
+    } else {
+      notify('No duplicate lines found to remove', 'info');
+    }
+  }, [originalText, config.duplicateOptions, notify]);
+
+  // Direct deduplicate words action
+  const handleDirectDeduplicateWords = useCallback(() => {
+    if (!originalText) {
+      notify('Please enter or paste text first', 'info');
+      return;
+    }
+    const wordOptions = {
+      caseSensitive: config.duplicateOptions?.caseSensitive ?? false,
+      mode: config.duplicateOptions?.duplicateWordsMode ?? 'consecutive',
+    };
+    const count = countDuplicateWords(originalText, wordOptions);
+    const deduplicated = removeDuplicateWords(originalText, wordOptions);
+
+    if (count > 0 && deduplicated !== originalText) {
+      setUndoHistory(prev => [...prev.slice(-20), originalText]);
+      setOriginalText(deduplicated);
+      notify(`Removed ${count} duplicate word${count !== 1 ? 's' : ''}`, 'success');
+    } else {
+      notify('No duplicate words found to remove', 'info');
+    }
+  }, [originalText, config.duplicateOptions, notify]);
+
+  // Direct find and replace action
+  const handleDirectReplace = useCallback((mode = 'all') => {
+    if (!originalText) {
+      notify('Please enter or paste text first', 'info');
+      return;
+    }
+    if (!config.findAndReplace?.search) {
+      notify('Please enter a search term', 'info');
+      return;
+    }
+    const res = findAndReplace(originalText, {
+      ...config.findAndReplace,
+      matchAll: mode === 'all',
+    });
+
+    if (res.error) {
+      notify(`Regex error: ${res.error}`, 'warning');
+      return;
+    }
+
+    if (res.replacedCount > 0) {
+      setUndoHistory(prev => [...prev.slice(-20), originalText]);
+      setOriginalText(res.result);
+      notify(`Replaced ${res.replacedCount} occurrence${res.replacedCount !== 1 ? 's' : ''}`, 'success');
+    } else {
+      notify(`No occurrences found for "${config.findAndReplace.search}"`, 'info');
+    }
+  }, [originalText, config.findAndReplace, notify]);
+
   // Clean Text Execution
   const executeClean = useCallback(() => {
     if (!originalText) {
@@ -134,7 +209,13 @@ export default function App() {
       return;
     }
 
-    const { cleanedText: result, operationsApplied: ops, findReplaceMatches: matches } = processText(originalText, config);
+    const { 
+      cleanedText: result, 
+      operationsApplied: ops, 
+      findReplaceMatches: matches,
+      findReplaceSearched 
+    } = processText(originalText, config);
+
     setCleanedText(result);
     setOperationsApplied(ops);
     setFindReplaceMatches(matches || 0);
@@ -150,24 +231,51 @@ export default function App() {
       });
     }
 
-    notify(
-      ops.length > 0 
-        ? `Cleaned successfully (${ops.length} operation${ops.length > 1 ? 's' : ''} applied)`
-        : 'Clean complete (no modifications needed)',
-      'success'
-    );
+    if (ops.length > 0) {
+      notify(
+        `Cleaned successfully (${ops.length} operation${ops.length > 1 ? 's' : ''} applied)`,
+        'success'
+      );
+    } else {
+      if (findReplaceSearched && matches === 0) {
+        notify(`Clean complete: 0 matches found for "${config.findAndReplace?.search || ''}"`, 'info');
+      } else {
+        notify('Clean complete (no modifications needed)', 'info');
+      }
+    }
   }, [originalText, config, activePresetId, presets, notify]);
 
   // Select Preset
   const handleSelectPreset = (preset) => {
     setActivePresetId(preset.id);
-    setConfig(prev => ({
+    const newConfig = {
       ...DEFAULT_CONFIG,
       ...preset.config,
-      findAndReplace: prev.findAndReplace,
-      findAndReplaceActive: prev.findAndReplaceActive,
-    }));
-    notify(`Applied preset: ${preset.name}`, 'info');
+      findAndReplace: config.findAndReplace,
+      findAndReplaceActive: config.findAndReplaceActive,
+    };
+    setConfig(newConfig);
+
+    // If originalText exists, execute immediately so preset changes are visible instantly
+    if (originalText.trim()) {
+      const { cleanedText: result, operationsApplied: ops, findReplaceMatches: matches } = processText(originalText, newConfig);
+      setCleanedText(result);
+      setOperationsApplied(ops);
+      setFindReplaceMatches(matches || 0);
+
+      if (isHistoryEnabled()) {
+        addHistoryEntry({
+          originalText,
+          cleanedText: result,
+          presetName: preset.name,
+          operationsApplied: ops,
+        });
+      }
+
+      notify(`Applied preset: ${preset.name} (${ops.length} ops applied)`, 'success');
+    } else {
+      notify(`Selected preset: ${preset.name}`, 'info');
+    }
   };
 
   // Save Preset
@@ -359,6 +467,10 @@ export default function App() {
             setActivePresetId('quick-clean');
             notify('Settings restored to defaults', 'info');
           }}
+          originalText={originalText}
+          onDirectReplace={handleDirectReplace}
+          onDirectDeduplicate={handleDirectDeduplicate}
+          onDirectDeduplicateWords={handleDirectDeduplicateWords}
         />
 
         {/* Custom Preset Selector & Management Controls */}

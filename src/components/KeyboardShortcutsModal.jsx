@@ -13,6 +13,11 @@ export default function KeyboardShortcutsModal({ isOpen, onClose, isMac }) {
       desc: 'Executes the active cleanup pipeline and generates cleaned results.',
     },
     {
+      keys: [metaKey, 'F'],
+      action: 'Find & Replace',
+      desc: 'Opens the inline Find & Replace bar inside the text editor.',
+    },
+    {
       keys: [metaKey, 'Shift', 'C'],
       action: 'Copy Cleaned Result',
       desc: 'Copies the cleaned text directly to your system clipboard.',
