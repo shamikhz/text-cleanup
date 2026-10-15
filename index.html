@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Primary Meta Tags -->
+    <title>Text Cleanup Studio — Clean, Format & Normalize Text Online</title>
+    <meta name="title" content="Text Cleanup Studio — Clean, Format & Normalize Text Online" />
+    <meta name="description" content="Clean up messy text, remove extra whitespace, eliminate duplicate lines, format cases, strip emojis, and inspect detailed statistics. 100% private, free, and in-browser." />
+    <meta name="keywords" content="clean text online, remove extra spaces, remove duplicate lines, fix text formatting, convert text case, remove emojis, text cleanup tool, text formatter" />
+    <meta name="author" content="Text Cleanup Studio" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://textcleanupstudio.com/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://textcleanupstudio.com/" />
+    <meta property="og:title" content="Text Cleanup Studio — Clean, Format & Normalize Text Online" />
+    <meta property="og:description" content="Clean up messy text, remove extra whitespace, eliminate duplicate lines, format cases, strip emojis, and inspect detailed statistics. 100% private and in-browser." />
+    <meta property="og:image" content="https://textcleanupstudio.com/og-image.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://textcleanupstudio.com/" />
+    <meta property="twitter:title" content="Text Cleanup Studio — Clean, Format & Normalize Text Online" />
+    <meta property="twitter:description" content="Clean up messy text, remove extra whitespace, eliminate duplicate lines, format cases, strip emojis, and inspect detailed statistics. 100% private and in-browser." />
+    <meta property="twitter:image" content="https://textcleanupstudio.com/og-image.png" />
+
+    <!-- Icons & Manifest -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#2563eb" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+    <!-- Structured Data (WebApplication & FAQPage) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebApplication",
+          "@id": "https://textcleanupstudio.com/#webapp",
+          "name": "Text Cleanup Studio",
+          "url": "https://textcleanupstudio.com/",
+          "description": "Professional text cleaner, whitespace normalizer, duplicate line remover, and case converter running 100% client-side in your browser.",
+          "applicationCategory": "UtilitiesApplication",
+          "operatingSystem": "All",
+          "browserRequirements": "Requires modern JavaScript-enabled browser",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "featureList": [
+            "Whitespace and line cleanup",
+            "Duplicate line removal",
+            "Case conversion (UPPER, lower, Title, Sentence)",
+            "Emoji and special character removal",
+            "Find and replace with case sensitivity",
+            "Side-by-side visual diff comparison",
+            "Instant text statistics (words, characters, reading time)",
+            "Custom presets and optional private local history",
+            "Installable Progressive Web App (PWA)"
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://textcleanupstudio.com/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Is my text uploaded or stored on any server?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. Text Cleanup Studio processes 100% of your text directly in your web browser. No text data ever leaves your device or is sent over any network."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I install Text Cleanup Studio as an app?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. As a Progressive Web App (PWA), you can install Text Cleanup Studio directly to your device desktop or home screen for quick access."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does duplicate line removal treat blank lines?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "You can configure whether blank lines are ignored or deduplicated. By default, duplicate non-empty lines are eliminated while preserving their first occurrence order."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How are custom presets saved?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Custom cleanup rules and presets are saved securely in your browser's localStorage. They remain strictly on your local device."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+  </head>
+  <body class="bg-slate-50 text-slate-900 antialiased font-sans selection:bg-blue-100 selection:text-blue-900 min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
